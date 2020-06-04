@@ -1,5 +1,9 @@
 package fpinscala.datastructures
 
+import fpinscala.datastructures.List.concat
+
+import scala.annotation.tailrec
+
 sealed trait List[+A] // `List` data type, parameterized on a type, `A`
 case object Nil extends List[Nothing] // A `List` data constructor representing the empty list
 /* Another data constructor, representing nonempty lists. Note that `tail` is another `List[A]`,
@@ -29,7 +33,7 @@ object List { // `List` companion object. Contains functions for creating and wo
     case Cons(x, Cons(y, Cons(3, Cons(4, _)))) => x + y
     case Cons(h, t) => h + sum(t)
     case _ => 101
-  }
+  } // returns 3
 
   def append[A](a1: List[A], a2: List[A]): List[A] =
     a1 match {
@@ -50,19 +54,84 @@ object List { // `List` companion object. Contains functions for creating and wo
     foldRight(ns, 1.0)(_ * _) // `_ * _` is more concise notation for `(x,y) => x * y`; see sidebar
 
 
-  def tail[A](l: List[A]): List[A] = ???
+  def tail[A](l: List[A]): List[A] =
+    l match {
+      case Nil => sys.error("tail of empty list")
+      case Cons(_, tail) => tail
+    }
 
-  def setHead[A](l: List[A], h: A): List[A] = ???
+  def setHead[A](l: List[A], h: A): List[A] =
+    l match {
+      case Nil => sys.error("setHead on empty list")
+      case Cons(_, t) => Cons(h, t)
+    }
 
-  def drop[A](l: List[A], n: Int): List[A] = ???
+  @tailrec
+  def drop[A](l: List[A], n: Int): List[A] = {
+      if(n <= 0) l
+      else l match {
+        case Nil => Nil
+        case Cons(_, t) => drop(t, n-1)
+      }
+  }
 
-  def dropWhile[A](l: List[A], f: A => Boolean): List[A] = ???
+  def dropWhile[A](l: List[A], f: A => Boolean): List[A] = {
+    l match {
+      case Nil => Nil
+      case Cons(h, t) if f(h) => dropWhile(t, f)
+      case _ => l
+    }
+  }
 
   def init[A](l: List[A]): List[A] = ???
 
-  def length[A](l: List[A]): Int = ???
+  def length[A](l: List[A]): Int = {
+    @tailrec
+    def go(l: List[A], length: Int): Int = {
+      l match {
+        case Nil => 0
+        case Cons(_, Nil) => length + 1
+        case _ => go(tail(l), length + 1)
+      }
+    }
+    go(l, 0)
+  }
 
-  def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B = ???
+  def length2[A](l: List[A]): Int = {
+    foldRight(l, 0) { (_, acc) => acc +1 }
+  }
 
-  def map[A,B](l: List[A])(f: A => B): List[B] = ???
+  @tailrec
+  def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B = {
+    l match {
+      case Nil => z
+      case Cons(h, t) => foldLeft(t, f(z, h))(f)
+    }
+  }
+
+  def map[A,B](l: List[A])(f: A => B): List[B] = {
+    val buf = new collection.mutable.ListBuffer[B]
+    def go(l: List[A]): Unit = l match {
+      case Nil => ()
+      case Cons(h,t) => buf += f(h); go(t)
+    }
+    go(l)
+    List(buf.toList: _*)
+  }
+
+  def filter[A](l: List[A])(f: A => Boolean): List[A] = {
+    val buf = new collection.mutable.ListBuffer[A]
+    def go(l: List[A]): Unit = l match {
+      case Nil => ()
+      case Cons(h,t) => if (f(h)) buf += h; go(t)
+    }
+    go(l)
+    List(buf.toList: _*) // converting from the standard Scala list to the list we've defined here
+  }
+
+  def concat[A](l: List[List[A]]): List[A] =
+    foldRight(l, Nil:List[A])(append)
+
+  def flatMap[A,B](l: List[A])(f: A => List[B]): List[B] =
+    concat(map(l)(f))
 }
